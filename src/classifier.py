@@ -1,4 +1,6 @@
-"""An example of how to use your own dataset to train a classifier that recognizes people.
+"""
+An example of how to use your own dataset to train a classifier that recognizes people.
+一个关于如何使用自己的数据集训练分类器的例子
 """
 # MIT License
 # 
@@ -34,7 +36,8 @@ import os
 import sys
 import math
 import pickle
-from sklearn.svm import SVC
+from sklearn.svm import SVC     # svc stands for support vector classification
+
 
 def main(args):
   
@@ -43,7 +46,7 @@ def main(args):
         with tf.Session() as sess:
             
             np.random.seed(seed=args.seed)
-            
+            # 判断是否需要划分训练集和测试集
             if args.use_split_dataset:
                 dataset_tmp = facenet.get_dataset(args.data_dir)
                 train_set, test_set = split_dataset(dataset_tmp, args.min_nrof_images_per_class, args.nrof_train_images_per_class)
@@ -58,13 +61,13 @@ def main(args):
             for cls in dataset:
                 assert(len(cls.image_paths)>0, 'There must be at least one image for each class in the dataset')            
 
-                 
+            # paths中的每一个元素对应一张人脸图片的路径, label对应label
             paths, labels = facenet.get_image_paths_and_labels(dataset)
             
             print('Number of classes: %d' % len(dataset))
             print('Number of images: %d' % len(paths))
             
-            # Load the model
+            # 导入训练好的模型
             print('Loading feature extraction model')
             facenet.load_model(args.model)
             
@@ -76,6 +79,7 @@ def main(args):
             
             # Run forward pass to calculate embeddings
             print('Calculating features for images')
+            # 图像的个数
             nrof_images = len(paths)
             nrof_batches_per_epoch = int(math.ceil(1.0*nrof_images / args.batch_size))
             emb_array = np.zeros((nrof_images, embedding_size))
@@ -83,6 +87,7 @@ def main(args):
                 start_index = i*args.batch_size
                 end_index = min((i+1)*args.batch_size, nrof_images)
                 paths_batch = paths[start_index:end_index]
+                # 分类时无需做random crop 和random flip
                 images = facenet.load_data(paths_batch, False, False, args.image_size)
                 feed_dict = { images_placeholder:images, phase_train_placeholder:False }
                 emb_array[start_index:end_index,:] = sess.run(embeddings, feed_dict=feed_dict)
@@ -90,13 +95,13 @@ def main(args):
             classifier_filename_exp = os.path.expanduser(args.classifier_filename)
 
             if (args.mode=='TRAIN'):
-                # Train classifier
+                # 训练分类器，注意该分类器指的是SVC，特征提取器已经有预训练模型
                 print('Training classifier')
                 model = SVC(kernel='linear', probability=True)
                 model.fit(emb_array, labels)
             
-                # Create a list of class names
-                class_names = [ cls.name.replace('_', ' ') for cls in dataset]
+                # Create a list of class names, 将名字之间的_替换为空格
+                class_names = [cls.name.replace('_', ' ') for cls in dataset]
 
                 # Saving classifier model
                 with open(classifier_filename_exp, 'wb') as outfile:
@@ -134,7 +139,8 @@ def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_clas
             test_set.append(facenet.ImageClass(cls.name, paths[nrof_train_images_per_class:]))
     return train_set, test_set
 
-            
+
+# 用于解析参数
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     

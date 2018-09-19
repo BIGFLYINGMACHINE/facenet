@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
+"""
+定义了inception resnet v1 模型
+这是inception network的第四版论文中定义的
+注意inception resnet v1 和 inception v4 是有区别的，计算量与inception v3 相近
+"""
 """Contains the definition of the Inception Resnet V1 architecture.
 As described in http://arxiv.org/abs/1602.07261.
   Inception-v4, Inception-ResNet and the Impact of Residual Connections
@@ -26,11 +30,13 @@ from __future__ import print_function
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
-# Inception-Resnet-A
+
+# Inception-Resnet-A, 被５次重复使用，所以写成函数，见论文figure 10
 def block35(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
     """Builds the 35x35 resnet block."""
     with tf.variable_scope(scope, 'Block35', [net], reuse=reuse):
         with tf.variable_scope('Branch_0'):
+            # 深度为32， filter size==1
             tower_conv = slim.conv2d(net, 32, 1, scope='Conv2d_1x1')
         with tf.variable_scope('Branch_1'):
             tower_conv1_0 = slim.conv2d(net, 32, 1, scope='Conv2d_0a_1x1')
@@ -39,15 +45,18 @@ def block35(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
             tower_conv2_0 = slim.conv2d(net, 32, 1, scope='Conv2d_0a_1x1')
             tower_conv2_1 = slim.conv2d(tower_conv2_0, 32, 3, scope='Conv2d_0b_3x3')
             tower_conv2_2 = slim.conv2d(tower_conv2_1, 32, 3, scope='Conv2d_0c_3x3')
+        # tf.concat: Concatenates tensors along one dimension.
         mixed = tf.concat([tower_conv, tower_conv1_1, tower_conv2_2], 3)
         up = slim.conv2d(mixed, net.get_shape()[3], 1, normalizer_fn=None,
                          activation_fn=None, scope='Conv2d_1x1')
+        # 这是residual network
         net += scale * up
         if activation_fn:
             net = activation_fn(net)
     return net
 
-# Inception-Resnet-B
+
+# Inception-Resnet-B，　被十次重复使用，所以写成函数,见论文figure 11
 def block17(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
     """Builds the 17x17 resnet block."""
     with tf.variable_scope(scope, 'Block17', [net], reuse=reuse):
@@ -68,7 +77,7 @@ def block17(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
     return net
 
 
-# Inception-Resnet-C
+# Inception-Resnet-C, 见论文figure 13
 def block8(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
     """Builds the 8x8 resnet block."""
     with tf.variable_scope(scope, 'Block8', [net], reuse=reuse):
@@ -87,7 +96,8 @@ def block8(net, scale=1.0, activation_fn=tf.nn.relu, scope=None, reuse=None):
         if activation_fn:
             net = activation_fn(net)
     return net
-  
+
+
 def reduction_a(net, k, l, m, n):
     with tf.variable_scope('Branch_0'):
         tower_conv = slim.conv2d(net, n, 3, stride=2, padding='VALID',
@@ -104,6 +114,7 @@ def reduction_a(net, k, l, m, n):
                                      scope='MaxPool_1a_3x3')
     net = tf.concat([tower_conv, tower_conv1_2, tower_pool], 3)
     return net
+
 
 def reduction_b(net):
     with tf.variable_scope('Branch_0'):
@@ -124,10 +135,11 @@ def reduction_b(net):
         tower_pool = slim.max_pool2d(net, 3, stride=2, padding='VALID',
                                      scope='MaxPool_1a_3x3')
     net = tf.concat([tower_conv_1, tower_conv1_1,
-                        tower_conv2_2, tower_pool], 3)
+                     tower_conv2_2, tower_pool], 3)
     return net
-  
-def inference(images, keep_probability, phase_train=True, 
+
+
+def inference(images, keep_probability, phase_train=True,
               bottleneck_layer_size=128, weight_decay=0.0, reuse=None):
     batch_norm_params = {
         # Decay for the moving averages.
@@ -137,23 +149,25 @@ def inference(images, keep_probability, phase_train=True,
         # force in-place updates of mean and variance estimates
         'updates_collections': None,
         # Moving averages ends up in the trainable variables collection
-        'variables_collections': [ tf.GraphKeys.TRAINABLE_VARIABLES ],
+        'variables_collections': [tf.GraphKeys.TRAINABLE_VARIABLES],
     }
-    
+
     with slim.arg_scope([slim.conv2d, slim.fully_connected],
-                        weights_initializer=slim.initializers.xavier_initializer(), 
+                        weights_initializer=slim.initializers.xavier_initializer(),
                         weights_regularizer=slim.l2_regularizer(weight_decay),
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params):
         return inception_resnet_v1(images, is_training=phase_train,
-              dropout_keep_prob=keep_probability, bottleneck_layer_size=bottleneck_layer_size, reuse=reuse)
+                                   dropout_keep_prob=keep_probability, bottleneck_layer_size=bottleneck_layer_size,
+                                   reuse=reuse)
 
 
 def inception_resnet_v1(inputs, is_training=True,
                         dropout_keep_prob=0.8,
                         bottleneck_layer_size=128,
-                        reuse=None, 
+                        reuse=None,
                         scope='InceptionResnetV1'):
+    # 此函数定义了整体的inception resnet v1 ，　即论文中被称为schema的部分，见论文中figure15
     """Creates the Inception Resnet V1 model.
     Args:
       inputs: a 4-D tensor of size [batch_size, height, width, 3].
@@ -168,13 +182,12 @@ def inception_resnet_v1(inputs, is_training=True,
       end_points: the set of end_points from the inception model.
     """
     end_points = {}
-  
+
     with tf.variable_scope(scope, 'InceptionResnetV1', [inputs], reuse=reuse):
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
             with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
                                 stride=1, padding='SAME'):
-      
                 # 149 x 149 x 32
                 net = slim.conv2d(inputs, 32, 3, stride=2, padding='VALID',
                                   scope='Conv2d_1a_3x3')
@@ -202,45 +215,45 @@ def inception_resnet_v1(inputs, is_training=True,
                 net = slim.conv2d(net, 256, 3, stride=2, padding='VALID',
                                   scope='Conv2d_4b_3x3')
                 end_points['Conv2d_4b_3x3'] = net
-                
-                # 5 x Inception-resnet-A
+                # 在这之前的部分即论文中的stem，见论文figure 14
+
+                # 5 x Inception-resnet-A, 重复五次
                 net = slim.repeat(net, 5, block35, scale=0.17)
                 end_points['Mixed_5a'] = net
-        
                 # Reduction-A
                 with tf.variable_scope('Mixed_6a'):
                     net = reduction_a(net, 192, 192, 256, 384)
                 end_points['Mixed_6a'] = net
-                
+
                 # 10 x Inception-Resnet-B
                 net = slim.repeat(net, 10, block17, scale=0.10)
                 end_points['Mixed_6b'] = net
-                
+
                 # Reduction-B
                 with tf.variable_scope('Mixed_7a'):
                     net = reduction_b(net)
                 end_points['Mixed_7a'] = net
-                
+
                 # 5 x Inception-Resnet-C
                 net = slim.repeat(net, 5, block8, scale=0.20)
                 end_points['Mixed_8a'] = net
-                
+
                 net = block8(net, activation_fn=None)
                 end_points['Mixed_8b'] = net
-                
+
                 with tf.variable_scope('Logits'):
                     end_points['PrePool'] = net
-                    #pylint: disable=no-member
+                    # pylint: disable=no-member
                     net = slim.avg_pool2d(net, net.get_shape()[1:3], padding='VALID',
                                           scope='AvgPool_1a_8x8')
                     net = slim.flatten(net)
-          
+
                     net = slim.dropout(net, dropout_keep_prob, is_training=is_training,
                                        scope='Dropout')
-          
+
                     end_points['PreLogitsFlatten'] = net
-                
-                net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None, 
-                        scope='Bottleneck', reuse=False)
-  
+
+                net = slim.fully_connected(net, bottleneck_layer_size, activation_fn=None,
+                                           scope='Bottleneck', reuse=False)
+
     return net, end_points

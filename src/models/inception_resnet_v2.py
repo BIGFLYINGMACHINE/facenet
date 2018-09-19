@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
+"""
+定义了inception resnet v2 模型
+这是inception network的第四版论文中定义的
+注意inception resnet v2 和 inception v4 是有区别的，但是计算量相近
+"""
 """Contains the definition of the Inception Resnet V2 architecture.
 As described in http://arxiv.org/abs/1602.07261.
   Inception-v4, Inception-ResNet and the Impact of Residual Connections
