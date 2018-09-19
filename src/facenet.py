@@ -30,6 +30,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import cv2
 from subprocess import Popen, PIPE
 import tensorflow as tf
 import numpy as np
@@ -42,7 +43,7 @@ import re
 from tensorflow.python.platform import gfile
 import math
 from six import iteritems
-
+import dlib
 
 def triplet_loss(anchor, positive, negative, alpha):
     """Calculate the triplet loss according to the FaceNet paper
@@ -619,3 +620,33 @@ def write_arguments_to_file(args, filename):
     with open(filename, 'w') as f:
         for key, value in iteritems(vars(args)):
             f.write('%s: %s\n' % (key, str(value)))
+
+
+def get_aligned_faces(img, size, predictor_path):
+    # Load all the models we need: a detector to find the faces, a shape predictor
+    # to find face landmarks so we can precisely localize the face
+    detector = dlib.get_frontal_face_detector()
+    sp = dlib.shape_predictor(predictor_path)
+
+    # Load the image using Dlib
+
+    # Ask the detector to find the bounding boxes of each face. The 1 in the
+    # second argument indicates that we should upsample the image 1 time. This
+    # will make everything bigger and allow us to detect more faces.
+    dets = detector(img, 1)
+
+    num_faces = len(dets)
+    if num_faces == 0:
+        print("Sorry, there were no faces found")
+        return []
+
+    # Find the 5 face landmarks we need to do the alignment.
+    faces = dlib.full_object_detections()
+    for detection in dets:
+        faces.append(sp(img, detection))
+
+    # Get the aligned face images
+    # Optionally:
+    # images = dlib.get_face_chips(img, faces, size=160, padding=0.25)
+    images = dlib.get_face_chips(img, faces, size=size)
+    return images

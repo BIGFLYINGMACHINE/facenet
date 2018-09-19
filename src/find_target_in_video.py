@@ -3,6 +3,7 @@ import cv2
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+import dlib
 import tensorflow as tf
 import numpy as np
 import argparse
@@ -11,7 +12,6 @@ import os
 import sys
 import math
 import pickle
-from sklearn.svm import SVC     # svc stands for support vector classification
 cap = cv2.VideoCapture(0)
 
 
@@ -55,38 +55,36 @@ def main(args):
 
             # Run forward pass to calculate embeddings
             print('Calculating features for images')
-            # 图像的个数
-            nrof_images = len(paths)
-            nrof_batches_per_epoch = int(math.ceil(1.0 * nrof_images / args.batch_size))
-            emb_array = np.zeros((nrof_images, embedding_size))
-            for i in range(nrof_batches_per_epoch):
-                start_index = i * args.batch_size
-                end_index = min((i + 1) * args.batch_size, nrof_images)
-                paths_batch = paths[start_index:end_index]
-                # 分类时无需做random crop 和random flip
-                images = facenet.load_data(paths_batch, False, False, args.image_size)
-                feed_dict = {images_placeholder: images, phase_train_placeholder: False}
-                emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
+            #
+            camera = cv2.VideoCapture(0)
 
-            classifier_filename_exp = os.path.expanduser(args.classifier_filename)
+            while True:
+                success, frame = camera.read()
+                if(success):
+                    images = facenet.get_aligned_faces(frame,  args.image_size,
+                                                       predictor_path='./shape_predictor_5_face_landmarks.dat')
+                    nrof_images = len(images)
+                    emb_array = np.zeros((nrof_images, embedding_size))
+                    feed_dict = {images_placeholder: images, phase_train_placeholder: False}
+                    emb_array[0:nrof_images, :] = sess.run(embeddings, feed_dict=feed_dict)
+                    classifier_filename_exp = os.path.expanduser(args.classifier_filename)
+                    if (args.mode == 'CLASSIFY'):
+                        # Classify images
+                        print('Testing classifier')
+                        with open(classifier_filename_exp, 'rb') as infile:
+                            (model, class_names) = pickle.load(infile)
 
-            if (args.mode == 'CLASSIFY'):
-                # Classify images
-                print('Testing classifier')
-                with open(classifier_filename_exp, 'rb') as infile:
-                    (model, class_names) = pickle.load(infile)
+                        print('Loaded classifier model from file "%s"' % classifier_filename_exp)
 
-                print('Loaded classifier model from file "%s"' % classifier_filename_exp)
+                        predictions = model.predict_proba(emb_array)
+                        best_class_indices = np.argmax(predictions, axis=1)
+                        best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
 
-                predictions = model.predict_proba(emb_array)
-                best_class_indices = np.argmax(predictions, axis=1)
-                best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
+                        for i in range(len(best_class_indices)):
+                            print('%4d  %s: %.3f' % (i, class_names[best_class_indices[i]], best_class_probabilities[i]))
 
-                for i in range(len(best_class_indices)):
-                    print('%4d  %s: %.3f' % (i, class_names[best_class_indices[i]], best_class_probabilities[i]))
-
-                accuracy = np.mean(np.equal(best_class_indices, labels))
-                print('Accuracy: %.3f' % accuracy)
+                        accuracy = np.mean(np.equal(best_class_indices, labels))
+                        print('Accuracy: %.3f' % accuracy)
 
 
 def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_class):
