@@ -27,7 +27,7 @@ An example of how to use your own dataset to train a classifier that recognizes 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
+import time
 import tensorflow as tf
 import numpy as np
 import argparse
@@ -59,8 +59,8 @@ def main(args):
 
             # Check that there are at least one training image per class
             for cls in dataset:
-                assert(len(cls.image_paths)>0, 'There must be at least one image for each class in the dataset')            
-
+                # assert(len(cls.image_paths) > 0, 'There must be at least one image for each class in the dataset')
+                assert len(cls.image_paths) > 0, 'There must be at least one image for each class in the dataset'
             # paths中的每一个元素对应一张人脸图片的路径, label对应label
             paths, labels = facenet.get_image_paths_and_labels(dataset)
             
@@ -83,6 +83,7 @@ def main(args):
             nrof_images = len(paths)
             nrof_batches_per_epoch = int(math.ceil(1.0*nrof_images / args.batch_size))
             emb_array = np.zeros((nrof_images, embedding_size))
+            start_time = time.time()
             for i in range(nrof_batches_per_epoch):
                 start_index = i*args.batch_size
                 end_index = min((i+1)*args.batch_size, nrof_images)
@@ -107,7 +108,10 @@ def main(args):
                 with open(classifier_filename_exp, 'wb') as outfile:
                     pickle.dump((model, class_names), outfile)
                 print('Saved classifier model to file "%s"' % classifier_filename_exp)
-                
+                process_time = time.time()- start_time
+                print("trainging time: %f"%process_time)
+                average_time = process_time/len(paths)
+                print("average time for each image is: %f"%average_time)
             elif (args.mode=='CLASSIFY'):
                 # Classify images
                 print('Testing classifier')
@@ -125,8 +129,12 @@ def main(args):
                     
                 accuracy = np.mean(np.equal(best_class_indices, labels))
                 print('Accuracy: %.3f' % accuracy)
-                
-            
+                process_time = time.time() - start_time
+                print("classify time: %f" % process_time)
+                average_time = process_time / len(paths)
+                print("average time for each image is: %f" % average_time)
+
+
 def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_class):
     train_set = []
     test_set = []
@@ -174,3 +182,6 @@ def parse_arguments(argv):
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
+
+
+#  python3 src/classifier.py TRAIN ~/datasets/lfw/lfw_mtcnnpy_160 ~/models/20170216-091149.pb ~/models/lfw_classifier.pkl --batch_size 1000 --min_nrof_images_per_class 40 --nrof_train_images_per_class 35 --use_split_dataset
