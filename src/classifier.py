@@ -184,4 +184,4 @@ if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
 
 
-#  python3 src/classifier.py TRAIN ~/datasets/lfw/lfw_mtcnnpy_160 ~/models/20170216-091149.pb ~/models/lfw_classifier.pkl --batch_size 1000 --min_nrof_images_per_class 40 --nrof_train_images_per_class 35 --use_split_dataset
+#  python3 src/classifier.py TRAIN ~/datasets/lfw/lfw_mtcnnpy_160 ~/models/facenet/20180402-114759/20180402-114759.pb ~/models/facenet/lfw_classifier.pkl --batch_size 500 --min_nrof_images_per_class 40 --nrof_train_images_per_class 35 --use_split_dataset

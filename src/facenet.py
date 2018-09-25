@@ -622,31 +622,19 @@ def write_arguments_to_file(args, filename):
             f.write('%s: %s\n' % (key, str(value)))
 
 
-def get_aligned_faces(img, size, predictor_path):
-    # Load all the models we need: a detector to find the faces, a shape predictor
-    # to find face landmarks so we can precisely localize the face
+def get_aligned_faces(img, size):
     detector = dlib.get_frontal_face_detector()
-    sp = dlib.shape_predictor(predictor_path)
+    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    dets = detector(gray_image, 1)
+    faces = []
+    for i, d in enumerate(dets):
+        x1 = d.top() if d.top() > 0 else 0
+        y1 = d.bottom() if d.bottom() > 0 else 0
+        x2 = d.left() if d.left() > 0 else 0
+        y2 = d.right() if d.right() > 0 else 0
+        face = img[x1:y1, x2:y2]
+        # 调整图片的尺寸
+        face = cv2.resize(face, (size, size))
+        faces.append(face)
 
-    # Load the image using Dlib
-
-    # Ask the detector to find the bounding boxes of each face. The 1 in the
-    # second argument indicates that we should upsample the image 1 time. This
-    # will make everything bigger and allow us to detect more faces.
-    dets = detector(img, 1)
-
-    num_faces = len(dets)
-    if num_faces == 0:
-        print("Sorry, there were no faces found")
-        return []
-
-    # Find the 5 face landmarks we need to do the alignment.
-    faces = dlib.full_object_detections()
-    for detection in dets:
-        faces.append(sp(img, detection))
-
-    # Get the aligned face images
-    # Optionally:
-    # images = dlib.get_face_chips(img, faces, size=160, padding=0.25)
-    images = dlib.get_face_chips(img, faces, size=size)
-    return images
+    return faces

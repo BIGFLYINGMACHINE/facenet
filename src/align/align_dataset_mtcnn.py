@@ -157,3 +157,9 @@ def parse_arguments(argv):
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
+
+'python3 src/align/align_dataset_mtcnn.py \
+~/Pictures/limei \
+~/Pictures/limei_align \
+--image_size 160 \
+--margin 44'
