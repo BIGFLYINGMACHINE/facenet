@@ -625,16 +625,25 @@ def write_arguments_to_file(args, filename):
 def get_aligned_faces(img, size):
     detector = dlib.get_frontal_face_detector()
     gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    padding = 30
     dets = detector(gray_image, 1)
-    faces = []
+    num_faces = len(dets)
+    faces = np.zeros((num_faces, size, size, 3))
+    rects = []
     for i, d in enumerate(dets):
-        x1 = d.top() if d.top() > 0 else 0
-        y1 = d.bottom() if d.bottom() > 0 else 0
-        x2 = d.left() if d.left() > 0 else 0
-        y2 = d.right() if d.right() > 0 else 0
-        face = img[x1:y1, x2:y2]
+        top = d.top() if d.top() > 0 else 0
+        bottom = d.bottom() if d.bottom() > 0 else 0
+        left = d.left() if d.left() > 0 else 0
+        right = d.right() if d.right() > 0 else 0
+        rect = (top, bottom, left, right)
+        if top - padding > 0 and bottom + padding < img.shape[0] and left - padding > 0 and right + padding < img.shape[
+            1]:
+            face = img[top - padding:bottom + padding, left - padding: right + padding]
         # 调整图片的尺寸
+        else:
+            face = img[top:bottom, left:right]
         face = cv2.resize(face, (size, size))
-        faces.append(face)
-
-    return faces
+        assert(face.shape[2] == 3)
+        faces[i, :, :, :] = face
+        rects.append(rect)
+    return faces, rects

@@ -92,7 +92,7 @@ def main(args):
                 images = facenet.load_data(paths_batch, False, False, args.image_size)
                 feed_dict = { images_placeholder:images, phase_train_placeholder:False }
                 emb_array[start_index:end_index,:] = sess.run(embeddings, feed_dict=feed_dict)
-            
+
             classifier_filename_exp = os.path.expanduser(args.classifier_filename)
 
             if (args.mode=='TRAIN'):
@@ -123,7 +123,7 @@ def main(args):
                 predictions = model.predict_proba(emb_array)
                 best_class_indices = np.argmax(predictions, axis=1)
                 best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-                
+
                 for i in range(len(best_class_indices)):
                     print('%4d  %s: %.3f' % (i, class_names[best_class_indices[i]], best_class_probabilities[i]))
                     
@@ -179,6 +179,7 @@ def parse_arguments(argv):
         help='Use this number of images from each class for training and the rest for testing', default=10)
     
     return parser.parse_args(argv)
+
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))

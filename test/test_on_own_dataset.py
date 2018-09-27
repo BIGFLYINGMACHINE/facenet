@@ -33,6 +33,7 @@ import facenet
 import os
 import pickle
 import cv2
+import time
 
 
 def main():
@@ -78,7 +79,8 @@ def main():
                         predictions = model.predict_proba(emb_array)
                         best_class_indices = np.argmax(predictions, axis=1)
                         best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-                        print(predictions)
+                        print(best_class_indices)
+                        print(best_class_probabilities)
                         for i in range(len(best_class_indices)):
                             print('face%4d  %s: %.3f' % (
                             i, class_names[best_class_indices[i]], best_class_probabilities[i]))
@@ -110,8 +112,12 @@ def test_on_images(path, size):
         i = 0
         for name in names:
             face = cv2.imread(os.path.join(path, name))
+            face = facenet.prewhiten(face)
             faces[i, :, :, :] = face
             i += 1
+        # dataset = facenet.get_dataset(path)
+        # paths, labels = facenet.get_image_paths_and_labels(dataset)
+        # faces = facenet.load_data(paths, False, False, size)
         with tf.Graph().as_default():
 
             with tf.Session() as sess:
@@ -136,7 +142,7 @@ def test_on_images(path, size):
                 phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
                 embedding_size = embeddings.get_shape()[1]
                 if faces.shape[0] > 0:
-
+                    start_time = time.time()
                     num_images = len(faces)
                     emb_array = np.zeros((num_images, embedding_size))
 
@@ -148,10 +154,13 @@ def test_on_images(path, size):
                     predictions = model.predict_proba(emb_array)
                     best_class_indices = np.argmax(predictions, axis=1)
                     best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-                    print(predictions)
+                    # print(predictions)
+                    # print(best_class_indices)
                     for i in range(len(best_class_indices)):
                         print('face%4d  %s: %.3f' % (
                             i, class_names[best_class_indices[i]], best_class_probabilities[i]))
+                    process_time = time.time() - start_time
+                    print("process time: ", process_time)
                 else:
                     print("Cannot get faces")
 
@@ -160,4 +169,4 @@ def test_on_images(path, size):
 
 
 if __name__ == '__main__':
-    test_on_images("~/datasets/lfw/s", 160)
+    test_on_images("~/datasets/Zhou_Zikang/Zhou_Zikang", 160)

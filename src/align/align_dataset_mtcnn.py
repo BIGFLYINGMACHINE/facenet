@@ -36,6 +36,7 @@ import align.detect_face
 import random
 from time import sleep
 
+
 def main(args):
     sleep(random.random())
     output_dir = os.path.expanduser(args.output_dir)
@@ -159,7 +160,7 @@ if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
 
 'python3 src/align/align_dataset_mtcnn.py \
-~/Pictures/limei \
-~/Pictures/limei_align \
+~/datasets/lfw/raw \
+~/datasets/lfw/aligned \
 --image_size 160 \
 --margin 44'
