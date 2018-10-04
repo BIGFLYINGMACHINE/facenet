@@ -61,8 +61,8 @@ def main(args):
             while True:
                 success, frame = camera.read()
                 if(success):
-                    images = facenet.get_aligned_faces(frame,  args.image_size,
-                                                       predictor_path='./shape_predictor_5_face_landmarks.dat')
+                    images = facenet.get_faces_with_cascade(frame, args.image_size,
+                                                            predictor_path='./shape_predictor_5_face_landmarks.dat')
                     nrof_images = len(images)
                     emb_array = np.zeros((nrof_images, embedding_size))
                     feed_dict = {images_placeholder: images, phase_train_placeholder: False}

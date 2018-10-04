@@ -1,3 +1,4 @@
+# coding=UTF-8
 """
 Functions for building the face recognition network.
 一些用于人脸识别工作的函数
@@ -43,7 +44,8 @@ import re
 from tensorflow.python.platform import gfile
 import math
 from six import iteritems
-import dlib
+
+
 
 def triplet_loss(anchor, positive, negative, alpha):
     """Calculate the triplet loss according to the FaceNet paper
@@ -622,28 +624,33 @@ def write_arguments_to_file(args, filename):
             f.write('%s: %s\n' % (key, str(value)))
 
 
-def get_aligned_faces(img, size):
-    detector = dlib.get_frontal_face_detector()
-    gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    padding = 30
-    dets = detector(gray_image, 1)
+def get_faces_with_cascade(img, size, face_cascade):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    dets = face_cascade.detectMultiScale(gray, 1.1, 5)
     num_faces = len(dets)
-    faces = np.zeros((num_faces, size, size, 3))
     rects = []
-    for i, d in enumerate(dets):
-        top = d.top() if d.top() > 0 else 0
-        bottom = d.bottom() if d.bottom() > 0 else 0
-        left = d.left() if d.left() > 0 else 0
-        right = d.right() if d.right() > 0 else 0
-        rect = (top, bottom, left, right)
-        if top - padding > 0 and bottom + padding < img.shape[0] and left - padding > 0 and right + padding < img.shape[
-            1]:
-            face = img[top - padding:bottom + padding, left - padding: right + padding]
-        # 调整图片的尺寸
-        else:
-            face = img[top:bottom, left:right]
+    faces = np.zeros((num_faces, size, size, 3))
+    i = 0
+    for (x, y, w, h) in dets:
+        face = img[y:y + h, x:x + w]
         face = cv2.resize(face, (size, size))
-        assert(face.shape[2] == 3)
-        faces[i, :, :, :] = face
-        rects.append(rect)
+        faces[i, :, :, :] = prewhiten(face)
+        rects.append((x, y, w, h))
+        i += 1
     return faces, rects
+
+
+def get_faces_with_mtcnn(img, size, detector):
+    bounding_boxes = [dict['box'] for dict in detector.detect_faces(img)]
+    faces = np.zeros((len(bounding_boxes), size, size, 3))
+    i = 0
+    for bounding_box in bounding_boxes:
+        x, y, w, h = bounding_box
+        face = cv2.resize(img[x: x + w, y:y + h], (size, size))
+        faces[i, :, :, :] = prewhiten(face)
+        i += 1
+    return faces, bounding_boxes
+
+
+# def get_faces_with_gpu(img, size, face_cascade):
+#     cv2.CascadeClassifier

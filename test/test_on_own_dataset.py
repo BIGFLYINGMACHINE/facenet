@@ -1,3 +1,4 @@
+# coding=UTF-8
 """
 An example of how to use your own dataset to train a classifier that recognizes people.
 一个关于如何使用自己的数据集训练分类器的例子
@@ -34,6 +35,7 @@ import os
 import pickle
 import cv2
 import time
+from mtcnn.mtcnn import MTCNN
 
 
 def main():
@@ -60,17 +62,22 @@ def main():
             embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
             phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
             embedding_size = embeddings.get_shape()[1]
-            cam = cv2.VideoCapture(0)
+            cam = cv2.VideoCapture("/home/zack/Downloads/zikang_air_view.mp4")
             cv2.namedWindow("detect window", 0)
+            face_cascade = cv2.CascadeClassifier('lbpcascade_frontalface.xml')
+            # detector = MTCNN()
             while True:
                 success, img = cam.read()
                 if success:
-                    faces, rects = facenet.get_aligned_faces(img, 160)
+                    start_time = time.time()
+                    faces, rects = facenet.get_faces_with_cascade(img, 160, face_cascade)
+                    # faces, rects = facenet.get_faces_with_mtcnn(img, 160, detector)
+                    process_time = time.time() - start_time
+                    print("Process time on getting faces: ", process_time)
                     if faces.shape[0] > 0:
-
+                        start_time = time.time()
                         num_images = len(faces)
                         emb_array = np.zeros((num_images, embedding_size))
-
                         # Run forward pass to calculate embeddings
                         print('Calculating features for images')
                         feed_dict = {images_placeholder: faces, phase_train_placeholder: False}
@@ -79,20 +86,29 @@ def main():
                         predictions = model.predict_proba(emb_array)
                         best_class_indices = np.argmax(predictions, axis=1)
                         best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-                        print(best_class_indices)
-                        print(best_class_probabilities)
                         for i in range(len(best_class_indices)):
-                            print('face%4d  %s: %.3f' % (
-                            i, class_names[best_class_indices[i]], best_class_probabilities[i]))
-                            top, bottom, left, right = rects[i]
-                            cv2.rectangle(img, (left, top), (right, bottom), (0, 255, 0), 3)
-                            cv2.putText(img, class_names[best_class_indices[i]],
-                                        (left, top),
-                                        cv2.FONT_HERSHEY_SIMPLEX,
-                                        1,
-                                        (0, 0, 255),
-                                        2)
-
+                            if best_class_probabilities[i] > 0.3:
+                                print('face%4d  %s: %.3f' % (
+                                    i, class_names[best_class_indices[i]], best_class_probabilities[i]))
+                                x, y, w, h = rects[i]
+                                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 3)
+                                cv2.putText(img, class_names[best_class_indices[i]],
+                                            (x, y),
+                                            cv2.FONT_HERSHEY_SIMPLEX,
+                                            1,
+                                            (0, 0, 255),
+                                            2)
+                            else:
+                                x, y, w, h = rects[i]
+                                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 3)
+                                cv2.putText(img, "Not target",
+                                            (x, y),
+                                            cv2.FONT_HERSHEY_SIMPLEX,
+                                            1,
+                                            (0, 0, 0),
+                                            2)
+                        process_time = time.time() - start_time
+                        print("Process time on getting predictions is: ", process_time)
                     else:
                         print("Cannot locate face in current frame")
                     cv2.imshow("detect window", img)
@@ -100,7 +116,7 @@ def main():
                     if key == 27:
                         break
                 else:
-                    print("Error: cannot open camera")
+                    print("Error: cannot open camera or video")
 
 
 def test_on_images(path, size):
@@ -169,4 +185,5 @@ def test_on_images(path, size):
 
 
 if __name__ == '__main__':
-    test_on_images("~/datasets/Zhou_Zikang/Zhou_Zikang", 160)
+    main()
+    # test_on_images("~/datasets/Zhou_Zikang/Zhou_Zikang", 160)
